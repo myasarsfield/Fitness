@@ -43,7 +43,7 @@ button { cursor: pointer; }
   padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
 .top-in { max-width: 720px; margin: 0 auto; display: flex; align-items: center; gap: 12px; padding-block: 10px; }
 .brand { font-family: var(--f-display); font-weight: 700; font-size: 22px; white-space: nowrap; letter-spacing: .02em; text-transform: uppercase; margin: 0; }
-.brand { color: var(--green); } .brand span { color: var(--accent); }
+.brand { color: var(--green); } .mark { width: 34px; height: 34px; flex: none; margin-right: -4px; } .brand span { color: var(--accent); }
 .sync { margin-left: auto; font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; white-space: nowrap; }
 .sync i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); display: inline-block; }
 .sync.cloud i { background: var(--good); } .sync.local i { background: var(--pr); }
@@ -206,6 +206,7 @@ table.pb td.r, table.pb th.r { text-align: right; white-space: nowrap; }
 </style>
 
 <header class="top"><div class="top-in">
+  <svg class="mark" viewBox="-10 -10 140 140" aria-hidden="true"><g transform="rotate(-35 60 60)"><path d="M4 60 L-6 60" style="stroke:var(--accent)" stroke-width="7" stroke-linecap="round" fill="none"/><path d="M10 60 C 35 22, 85 22, 112 60 C 85 98, 35 98, 10 60 Z" style="fill:var(--green)"/><path d="M16 60 H42 L49 46 L58 78 L67 36 L74 60 H104" style="stroke:var(--surface)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none"/></g></svg>
   <h1 class="brand">Fitness <span>Logbook</span></h1>
   <div class="sync" id="sync"><i></i><span>Connecting…</span></div>
 </div></header>
