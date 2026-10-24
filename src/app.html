@@ -1030,7 +1030,9 @@ const HEALTH_KEY = 'fitness-health-pending';
 function captureHealthImport() {
   let q; try { q = new URLSearchParams(location.search); } catch (_) { return; }
   if (!q.has('health')) return;
-  const pick = {}; ['date', 'steps', 'sleep', 'sleep_min', 'exercise', 'energy', 'weight'].forEach(k => { if (q.get(k) != null && q.get(k) !== '') pick[k] = q.get(k); });
+  let src = q;
+  if (q.get('d')) { try { const inner = new URLSearchParams(q.get('d').replace(/^\?/, '')); inner.forEach((v, k) => { if (!q.get(k)) q.set(k, v); }); } catch (_) {} src = q; }
+  const pick = {}; ['date', 'steps', 'sleep', 'sleep_min', 'exercise', 'energy', 'weight'].forEach(k => { if (src.get(k) != null && src.get(k) !== '') pick[k] = src.get(k).trim(); });
   try { sessionStorage.setItem(HEALTH_KEY, JSON.stringify(pick)); } catch (_) {}
   window.__healthPending = pick;
   try { history.replaceState(null, '', location.pathname + location.hash); } catch (_) {}
@@ -1043,7 +1045,8 @@ function applyHealthImport() {
   const date = /^\d{4}-\d{2}-\d{2}$/.test(d.date || '') ? d.date : todayStr();
   const key = date.replace(/-/g, ''); const now = Date.now(); const out = []; const got = [];
   const steps = n(d.steps); if (steps) { out.push({ id: `h${key}steps`, kind: 'steps', date, time: '23:00', created: now, health: true, count: Math.round(steps) }); got.push(`${fmt(steps)} steps`); }
-  let sleep = n(d.sleep); if (sleep == null && n(d.sleep_min) != null) sleep = n(d.sleep_min) / 60;
+  const dur = v => { const t = String(v || '').toLowerCase(); const hm = t.match(/^(\d{1,2}):(\d{2})/); if (hm) return +hm[1] + hm[2] / 60; const h = t.match(/(\d+(?:[.,]\d+)?)\s*(h|hr|hrs|hour|hours)\b/), m = t.match(/(\d+)\s*(m|min|mins|minute|minutes)\b/); if (h || m) return (h ? +h[1].replace(',', '.') : 0) + (m ? +m[1] / 60 : 0); return n(v); };
+  let sleep = dur(d.sleep); if (sleep == null && n(d.sleep_min) != null) sleep = n(d.sleep_min) / 60;
   if (sleep && sleep > 1440) sleep = sleep / 3600; else if (sleep && sleep > 24) sleep = sleep / 60; // seconds or minutes sent instead of hours
   if (sleep) { sleep = Math.round(sleep * 100) / 100; out.push({ id: `h${key}sleep`, kind: 'sleep', date, time: '07:00', created: now, health: true, hours: sleep }); got.push(`${fmt(sleep, 1)} h sleep`); }
   const ex = n(d.exercise), en = n(d.energy);
