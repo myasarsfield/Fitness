@@ -333,6 +333,21 @@ details.part { border-top: 4px solid var(--brown); }
 .meter .m-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .meter .val { font-family: var(--f-display); font-weight: 800; font-size: 22px; }
 .meter .lab { font-family: var(--f-display); font-weight: 700; font-size: 11px; letter-spacing: .1em; }
+/* full-screen dashboard */
+body.on-dash { background: var(--hero); }
+.hero.dash-full { min-height: calc(100dvh - 62px - var(--nav-h) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); padding-block: 26px 34px; gap: 14px; margin-bottom: 0; }
+.hero.dash-full::after { display: none; }
+body.on-dash main { padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px)); }
+.tiles.big { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; flex: 1; align-content: start; }
+@media (min-width: 640px) { .tiles.big { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.tiles.big .tile { text-align: left; color: var(--hero-ink); display: flex; flex-direction: column; gap: 6px; padding: 16px; min-height: 112px; justify-content: space-between; font: inherit; cursor: pointer; }
+.tiles.big .tile:hover { border-color: var(--lime); }
+.tiles.big .tile span { font-family: var(--f-display); font-weight: 700; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
+.tiles.big .tile b { font-size: 30px; }
+.tbar { display: block; height: 6px; border-radius: 3px; background: rgba(255,255,255,.12); overflow: hidden; }
+.tbar em { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--lime), #E3B48C); }
+.dash-actions { margin-top: auto; }
+.dash-actions .btn { flex: 1; min-height: 46px; }
 /* confetti */
 .confetti { position: fixed; inset: 0; pointer-events: none; z-index: 60; overflow: hidden; }
 .confetti i { position: absolute; top: -12px; width: 9px; height: 14px; border-radius: 2px; animation: fall 1.4s cubic-bezier(.2,.7,.4,1) forwards; }
@@ -354,7 +369,7 @@ details.part { border-top: 4px solid var(--brown); }
   <button class="tab" data-tab="today"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Today</button>
   <button class="tab add" id="add-btn" aria-label="Log something"><span class="plus"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span></button>
   <button class="tab" data-tab="body"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4.5" r="2"/><path d="M5 9l7 1.5L19 9M12 10.5V15M12 15l-3 6M12 15l3 6"/></svg>Body</button>
-  <button class="tab" data-tab="progress"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18"/><path d="M5 16l4-5 4 3 6-8"/></svg>Progress</button>
+  <button class="tab" data-tab="breakdown"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="4.5" rx="1.5"/><rect x="3" y="10" width="18" height="4.5" rx="1.5"/><rect x="3" y="16" width="18" height="4.5" rx="1.5"/></svg>Breakdown</button>
   <button class="tab" id="more-btn" data-more="1"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>More</button>
 </div></nav>
 
@@ -532,7 +547,7 @@ function saveError(err) {
 
 /* ---------- UI state ---------- */
 const state = { tab: 'dashboard', open: new Set(), closed: new Set(), day: todayStr(), filter: 'all', q: '', range: 28, exercise: '', dashRange: 7, dashOpen: new Set() };
-const validTabs = ['today', 'dashboard', 'body', 'history', 'progress', 'goals'];
+const validTabs = ['today', 'dashboard', 'breakdown', 'body', 'history', 'progress', 'goals'];
 try { const h = location.hash.slice(1); if (validTabs.includes(h)) state.tab = h; } catch (_) {}
 
 /* ---------- Derived data ---------- */
@@ -631,13 +646,14 @@ function render() {
   if (a && view.contains(a) && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && a.type !== 'file') { render.deferred = true; return; }
   render.deferred = false;
   $$('.tab[data-tab]').forEach(b => b.setAttribute('aria-current', b.dataset.tab === state.tab ? 'page' : 'false'));
-  $('#more-btn').setAttribute('aria-current', state.tab === 'history' || state.tab === 'goals' ? 'page' : 'false');
+  $('#more-btn').setAttribute('aria-current', ['history', 'goals', 'progress'].includes(state.tab) ? 'page' : 'false');
+  document.body.classList.toggle('on-dash', state.tab === 'dashboard');
   const sync = $('#sync');
   sync.className = 'sync ' + Store.mode;
   sync.querySelector('span').textContent = Store.mode === 'cloud' ? 'Synced to your account' : Store.mode === 'local' ? 'Saved on this device' : 'Connecting…';
   if (Store.mode === 'connecting') { view.innerHTML = '<div class="card empty"><p class="muted">Loading your log…</p></div>'; return; }
   const all = Store.list();
-  ({ today: renderToday, dashboard: renderDashboard, body: renderBody, history: renderHistory, progress: renderProgress, goals: renderSettings })[state.tab](all);
+  ({ today: renderToday, dashboard: renderDashboard, breakdown: renderBreakdown, body: renderBody, history: renderHistory, progress: renderProgress, goals: renderSettings })[state.tab](all);
 }
 view.addEventListener('focusout', () => setTimeout(() => { if (render.deferred) render(); }, 0));
 
@@ -1242,8 +1258,8 @@ function dashOrder() {
 }
 const dashHidden = () => new Set(Array.isArray(Store.settings.dashHidden) ? Store.settings.dashHidden : []);
 
-function renderDashboard(all) {
-  if (!all.length) { view.innerHTML = hero('Dashboard', `${greeting()}. Let's get moving.`, 'Track workouts, food, water, sleep and steps, then watch it all build up here.') + `<section class="card empty"><h2>Welcome to your Fitness Logbook</h2><p>Your dashboard fills up as you log workouts, food, water, sleep, steps and more. Tap + to log your first entry, or use the Body page to mark exercises as used.</p>
+function renderBreakdown(all) {
+  if (!all.length) { view.innerHTML = hero('Breakdown', 'All your sections', 'Strength, cardio, every meal, water, sleep, steps and more, each in its own drop-down.') + `<section class="card empty"><h2>Nothing logged yet</h2><p>Your breakdown fills up as you log workouts, food, water, sleep, steps and more. Tap + to log your first entry, or use the Body page to mark exercises as used.</p>
     <div class="actions" style="justify-content:center"><button class="btn primary" data-act="add">Log your first entry</button><button class="btn" data-act="load-sample">Load a sample fortnight</button></div><p class="small muted">Sample entries are marked and can be removed in one tap.</p></section>`; return; }
   const t = todayStr(), range = state.dashRange, start = addDays(t, -(range - 1));
   const list = all.filter(e => e.date >= start && e.date <= t);
@@ -1287,24 +1303,76 @@ function renderDashboard(all) {
 
   const visible = dashOrder().filter(id => !hidden.has(id));
   view.innerHTML = `
-  ${(() => { const tT = dayTotals(all.filter(e => e.date === t)); const byD = groupByDay(all); const wk = Array.from({ length: 7 }, (_, i) => addDays(t, -i)).filter(d => dayTotals(byD.get(d) || []).trained).length; const lw = latestWeight(all); const g = goalsHit().length;
-    return hero(`Dashboard · ${esc(niceDay(t))}`, `${greeting()}.`, g ? `${g} of 5 daily goals hit so far. ${g >= 4 ? 'Brilliant going.' : 'Keep it up.'}` : 'Here is everything you log, in one place.',
-      `<div class="tiles"><div class="tile"><b>${streak(byD)}<small> days</small></b><span>Logging streak</span></div><div class="tile"><b>${wk}<small> / 7</small></b><span>Days trained</span></div>
-       <div class="tile"><b>${fmt(tT.kcal)}<small> kcal</small></b><span>Eaten today</span></div><div class="tile"><b>${lw ? fmt(lw.weight, 1) : '–'}<small> kg</small></b><span>Latest weight</span></div></div>
-       <div class="actions"><div class="seg" role="group" aria-label="Period">${[[1, 'Today'], [7, '7 days'], [30, '30 days']].map(([v, l]) => `<button data-dash-range="${v}" aria-pressed="${range === v}">${l}</button>`).join('')}</div>
-       <button class="btn" data-act="dash-custom">Customise</button></div>`); })()}
+  ${hero(`Breakdown · ${range === 1 ? 'today' : 'last ' + range + ' days'}`, 'All your sections', 'Open any section for the detail. Choose what shows and in what order with Customise.',
+    `<div class="actions"><div class="seg" role="group" aria-label="Period">${[[1, 'Today'], [7, '7 days'], [30, '30 days']].map(([v, l]) => `<button data-dash-range="${v}" aria-pressed="${range === v}">${l}</button>`).join('')}</div>
+     <button class="btn" data-act="dash-custom">Customise</button></div>`)}
   ${sampleBanner(all)}
   ${visible.length ? `<section class="dash-grid">${visible.map(id => { const s = DASH_BY_ID[id];
     const html = body[id](); const cut = html.indexOf('<!--more-->'); const head = cut >= 0 ? html.slice(0, cut) : ''; const rest = cut >= 0 ? html.slice(cut + 11) : html;
     return dd('dash-' + id, `<div class="sum-main stack" style="gap:8px"><h2 style="display:flex;align-items:center;gap:8px;color:var(--ink)"><span class="dot"></span>${esc(s.label)}</h2>${head}</div>`,
       rest + `<div class="actions"><span class="spacer"></span><button class="btn link small" data-dash-hide="${id}">Hide this section</button></div>`, 'card dash-card', `--c:${kc(s.kind)}`); }).join('')}</section>`
-    : `<section class="card empty"><p>Every section is hidden. Choose what to show.</p><button class="btn primary" data-act="dash-custom">Customise dashboard</button></section>`}`;
+    : `<section class="card empty"><p>Every section is hidden. Choose what to show.</p><button class="btn primary" data-act="dash-custom">Customise breakdown</button></section>`}`;
+}
+
+/* ---------- Dashboard: full-screen tiles ---------- */
+const TILE_MAX = 6;
+const TILES = [
+  { id: 'kcal', label: 'Calories today', go: 'today', calc: c => ({ v: fmt(c.T.kcal), u: `/ ${fmt(c.S.kcal)} kcal`, p: c.S.kcal ? c.T.kcal / c.S.kcal : null }) },
+  { id: 'protein', label: 'Protein today', go: 'today', calc: c => ({ v: fmt(c.T.protein), u: `/ ${fmt(c.S.protein)} g`, p: c.S.protein ? c.T.protein / c.S.protein : null }) },
+  { id: 'water', label: 'Water today', go: 'today', calc: c => ({ v: fmt(c.T.water), u: `/ ${fmt(c.S.water)} ml`, p: c.S.water ? c.T.water / c.S.water : null }) },
+  { id: 'steps', label: 'Steps today', go: 'today', calc: c => ({ v: fmt(c.T.steps), u: `/ ${fmt(c.S.steps)}`, p: c.S.steps ? c.T.steps / c.S.steps : null }) },
+  { id: 'sleep', label: 'Sleep last night', go: 'today', calc: c => ({ v: fmt(c.T.sleep, 1), u: `/ ${fmt(c.S.sleep, 1)} h`, p: c.S.sleep ? c.T.sleep / c.S.sleep : null }) },
+  { id: 'active', label: 'Active today', go: 'today', calc: c => ({ v: fmt(c.T.active), u: `/ ${fmt(c.S.active)} min`, p: c.S.active ? c.T.active / c.S.active : null }) },
+  { id: 'goals', label: 'Goals hit today', go: 'today', calc: c => ({ v: String(goalsHit().length), u: '/ 5', p: goalsHit().length / 5 }) },
+  { id: 'streak', label: 'Logging streak', go: 'history', calc: c => ({ v: String(streak(c.byD)), u: 'days' }) },
+  { id: 'trained', label: 'Days trained this week', go: 'breakdown', calc: c => ({ v: String(c.week.filter(d => dayTotals(c.byD.get(d) || []).trained).length), u: '/ 7' }) },
+  { id: 'workouts', label: 'Strength sessions this week', go: 'breakdown', calc: c => ({ v: String(new Set(c.weekList.filter(e => e.kind === 'strength').map(e => e.date)).size), u: 'sessions' }) },
+  { id: 'volume', label: 'Kilograms lifted this week', go: 'progress', calc: c => ({ v: fmt(sum(c.weekList.filter(e => e.kind === 'strength').map(volume))), u: 'kg' }) },
+  { id: 'km', label: 'Cardio distance this week', go: 'breakdown', calc: c => ({ v: fmt(sum(c.weekList.filter(e => e.kind === 'cardio').map(e => e.km)), 1), u: 'km' }) },
+  { id: 'weight', label: 'Latest weight', go: 'progress', calc: c => { const w = latestWeight(c.all); const prev = w ? c.all.filter(e => e.kind === 'body' && e.weight != null && e.date <= addDays(w.date, -7)).pop() : null;
+      return { v: w ? fmt(w.weight, 1) : '–', u: w && prev ? `kg · ${w.weight - prev.weight > 0 ? '+' : ''}${fmt(w.weight - prev.weight, 1)} wk` : 'kg' }; } },
+  { id: 'mood', label: 'Mood this week', go: 'breakdown', calc: c => ({ v: fmt(avg(c.weekList.filter(e => e.kind === 'mood').map(e => e.mood)), 1), u: '/ 5' }) }
+];
+const TILE_BY_ID = Object.fromEntries(TILES.map(x => [x.id, x]));
+const DEFAULT_TILES = ['kcal', 'water', 'steps', 'sleep', 'streak', 'weight'];
+function tileIds() { const t = Array.isArray(Store.settings.tiles) ? Store.settings.tiles.filter(id => TILE_BY_ID[id]) : null; return (t && t.length ? t : DEFAULT_TILES).slice(0, TILE_MAX); }
+
+function renderDashboard(all) {
+  const t = todayStr(); const byD = groupByDay(all);
+  const week = Array.from({ length: 7 }, (_, i) => addDays(t, -i));
+  const ctx = { all, byD, week, weekList: all.filter(e => e.date >= week[6] && e.date <= t), T: dayTotals(byD.get(t) || []), S: Store.settings };
+  const g = goalsHit().length;
+  const sub = !all.length ? 'Tap + to log your first workout, meal or glass of water.' : g ? `${g} of 5 daily goals hit so far. ${g >= 4 ? 'Brilliant going.' : 'Keep it up.'}` : 'Here are the numbers you chose to see.';
+  const ids = tileIds();
+  view.innerHTML = `<section class="hero dash-full">
+    <p class="eyebrow">Dashboard · ${esc(niceDay(t))}</p>
+    <h1 class="h1">${greeting()}.</h1>
+    <p>${sub}</p>
+    <div class="tiles big">${ids.map(id => { const x = TILE_BY_ID[id]; const r = x.calc(ctx); const pct = r.p != null ? Math.max(0, Math.min(1, r.p)) : null;
+      return `<button class="tile" data-goto="${x.go}"><span>${esc(x.label)}</span><b>${r.v}<small> ${esc(r.u || '')}</small></b>${pct != null ? `<i class="tbar" role="img" aria-label="${Math.round(pct * 100)}% of goal"><em style="width:${(pct * 100).toFixed(1)}%"></em></i>` : ''}</button>`; }).join('')}</div>
+    <div class="actions dash-actions">
+      <button class="btn" data-act="tiles-edit">Choose tiles</button>
+      <button class="btn primary" data-goto="breakdown">Full breakdown</button>
+      ${!all.length ? '<button class="btn" data-act="load-sample">Load sample data</button>' : ''}
+    </div>
+  </section>`;
+}
+function openTilePicker() {
+  sheetCtx = { kind: null, tiles: true };
+  const ids = tileIds();
+  panel.innerHTML = `<div class="sheet-head"><h3 id="sheet-title">Choose tiles</h3><button class="icon-btn" data-act="close" aria-label="Close">${ICON.close}</button></div>
+    <p class="small muted" style="margin:0">Pick up to ${TILE_MAX} to show on your dashboard. They appear in the order you pick them. <b>${ids.length} of ${TILE_MAX}</b> chosen.</p>
+    <div>${TILES.map(x => { const i = ids.indexOf(x.id); const on = i >= 0;
+      return `<div class="toggle-row" style="grid-template-columns:28px minmax(0,1fr) auto"><span class="num small muted" style="text-align:center">${on ? i + 1 : ''}</span><span>${esc(x.label)}</span>
+        <button class="used" data-tile-toggle="${x.id}" aria-pressed="${on}">${on ? 'Shown' : 'Add'}</button></div>`; }).join('')}</div>
+    <div class="actions"><button class="btn" data-act="tiles-reset">Reset to default</button><span class="spacer"></span><button class="btn primary" data-act="close">Done</button></div>`;
+  if (sheet.hidden) showSheet();
 }
 
 function openDashCustom() {
   sheetCtx = { kind: null, dash: true };
   const order = dashOrder(), hidden = dashHidden();
-  panel.innerHTML = `<div class="sheet-head"><h3 id="sheet-title">Customise dashboard</h3><button class="icon-btn" data-act="close" aria-label="Close">${ICON.close}</button></div>
+  panel.innerHTML = `<div class="sheet-head"><h3 id="sheet-title">Customise breakdown</h3><button class="icon-btn" data-act="close" aria-label="Close">${ICON.close}</button></div>
     <p class="small muted" style="margin:0">Choose which sections appear and in what order. Changes save straight away.</p>
     <div>${order.map((id, i) => { const s = DASH_BY_ID[id]; const on = !hidden.has(id);
       return `<div class="toggle-row" style="--c:${kc(s.kind)}"><span class="dot"></span><span>${esc(s.label)}</span>
@@ -1318,6 +1386,7 @@ function openMore() {
   sheetCtx = { kind: null };
   panel.innerHTML = `<div class="sheet-head"><h3 id="sheet-title">More</h3><button class="icon-btn" data-act="close" aria-label="Close">${ICON.close}</button></div>
     <div class="kinds" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+      <button class="kind" data-goto="progress" style="--c:var(--brown)"><b>Progress</b><span>Charts and personal bests</span></button>
       <button class="kind" data-goto="history" style="--c:var(--accent)"><b>History</b><span>Every entry, searchable</span></button>
       <button class="kind" data-goto="goals" style="--c:var(--green)"><b>Goals</b><span>Targets, backups, data</span></button>
     </div>`;
@@ -1612,6 +1681,9 @@ document.addEventListener('click', ev => {
     }
   }
   if (el.dataset.jump) { state.open.add('part-' + el.dataset.jump); const dt = document.querySelector(`[data-dd="part-${el.dataset.jump}"]`); if (dt) dt.open = true; const sec = document.getElementById('part-' + el.dataset.jump); if (sec) sec.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); return; }
+  if (el.dataset.tileToggle) { const ids = tileIds(); const id = el.dataset.tileToggle; const i = ids.indexOf(id);
+    if (i >= 0) { if (ids.length === 1) { toast('Keep at least one tile.'); return; } ids.splice(i, 1); } else { if (ids.length >= TILE_MAX) { toast(`You can show up to ${TILE_MAX} tiles. Remove one first.`); return; } ids.push(id); }
+    Store.setSettings({ tiles: ids }); openTilePicker(); return; }
   if (el.dataset.dashRange) { state.dashRange = Number(el.dataset.dashRange); render(); return; }
   if (el.dataset.dashMore) { const id = el.dataset.dashMore; state.dashOpen.has(id) ? state.dashOpen.delete(id) : state.dashOpen.add(id); render(); return; }
   if (el.dataset.dashHide) { const h = dashHidden(); h.add(el.dataset.dashHide); Store.setSettings({ dashHidden: Array.from(h) }); toast('Section hidden. Bring it back from Customise.'); return; }
@@ -1627,6 +1699,8 @@ document.addEventListener('click', ev => {
   switch (el.dataset.act) {
     case 'add': openPicker(); break;
     case 'dash-custom': openDashCustom(); break;
+    case 'tiles-edit': openTilePicker(); break;
+    case 'tiles-reset': Store.setSettings({ tiles: DEFAULT_TILES.slice() }); openTilePicker(); break;
     case 'dash-all': Store.setSettings({ dashHidden: [] }); openDashCustom(); break;
     case 'close': closeSheet(); break;
     case 'day-prev': state.day = addDays(state.day, -1); render(); break;
