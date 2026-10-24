@@ -742,8 +742,8 @@ function renderToday(all) {
     html += `<section class="card empty">
       <h2>Your logbook is empty</h2>
       <p>Log workouts, runs, meals, water, weight, sleep, steps and mood. Everything you add shows up here, in History and on the Progress charts.</p>
-      <div class="actions" style="justify-content:center"><button class="btn primary" data-act="add">Log your first entry</button><button class="btn" data-act="load-sample">Load a sample fortnight</button></div>
-      <p class="small muted">Sample entries are marked and can be removed in one tap.</p>
+      <div class="actions" style="justify-content:center"><button class="btn primary" data-act="add">Log your first entry</button>${Store.sb ? "" : `<button class="btn" data-act="load-sample">Load a sample fortnight</button>`}</div>
+      ${Store.sb ? '' : '<p class="small muted">Sample entries are marked and can be removed in one tap.</p>'}
     </section>`;
     view.innerHTML = html; return;
   }
@@ -960,7 +960,7 @@ function renderSettings(all) {
     </div>
     <div id="export-box" hidden class="stack"><p class="small muted" style="margin:0">Downloads are not available here. Copy this text and save it as a file instead.</p><textarea id="export-text" class="search" rows="6" readonly></textarea><div class="actions"><button class="btn" data-act="copy-export">Copy to clipboard</button></div></div>
     <div class="actions">
-      ${all.some(e => e.sample) ? '<button class="btn" data-act="clear-sample">Remove sample data</button>' : '<button class="btn" data-act="load-sample">Load a sample fortnight</button>'}
+      ${all.some(e => e.sample) ? '<button class="btn" data-act="clear-sample">Remove sample data</button>' : (Store.sb ? '' : '<button class="btn" data-act="load-sample">Load a sample fortnight</button>')}
       <span class="spacer"></span>
       <button class="btn danger" data-act="clear-all">Delete all entries</button>
     </div>
@@ -1345,7 +1345,7 @@ const dashHidden = () => new Set(Array.isArray(Store.settings.dashHidden) ? Stor
 
 function renderBreakdown(all) {
   if (!all.length) { view.innerHTML = hero('Breakdown', 'All your sections', 'Strength, cardio, every meal, water, sleep, steps and more, each in its own drop-down.') + `<section class="card empty"><h2>Nothing logged yet</h2><p>Your breakdown fills up as you log workouts, food, water, sleep, steps and more. Tap + to log your first entry, or use the Body page to mark exercises as used.</p>
-    <div class="actions" style="justify-content:center"><button class="btn primary" data-act="add">Log your first entry</button><button class="btn" data-act="load-sample">Load a sample fortnight</button></div><p class="small muted">Sample entries are marked and can be removed in one tap.</p></section>`; return; }
+    <div class="actions" style="justify-content:center"><button class="btn primary" data-act="add">Log your first entry</button>${Store.sb ? "" : `<button class="btn" data-act="load-sample">Load a sample fortnight</button>`}</div>${Store.sb ? '' : '<p class="small muted">Sample entries are marked and can be removed in one tap.</p>'}</section>`; return; }
   const t = todayStr(), range = state.dashRange, start = addDays(t, -(range - 1));
   const list = all.filter(e => e.date >= start && e.date <= t);
   const byDay = groupByDay(list);
@@ -1438,7 +1438,7 @@ function renderDashboard(all) {
     <div class="actions dash-actions">
       <button class="btn" data-act="tiles-edit">Choose tiles</button>
       <button class="btn primary" data-goto="breakdown">Full breakdown</button>
-      ${!all.length ? '<button class="btn" data-act="load-sample">Load sample data</button>' : ''}
+      ${!all.length && !Store.sb ? '<button class="btn" data-act="load-sample">Load sample data</button>' : ''}
     </div>
   </section>`;
 }
