@@ -32,6 +32,16 @@ Sections fold into drop-downs to keep things compact, and goal rings celebrate w
 
 Strength entries remember your last session for each exercise and pre-fill the sets. A new best estimated 1RM is flagged as you save it.
 
+## Also included
+
+- **Workouts**: start an empty workout, a saved routine or a starter plan (Push, Pull, Legs, Full body). Tick off sets, a rest timer counts down with a sound, and the workout keeps going if you leave the screen. Finish to save it as strength entries; save any workout as a routine.
+- **Targets**: suggested calories, protein and water from age, height, weight, activity and goal (Mifflin-St Jeor).
+- **Weekly round-up**: this week so far against last week, at the top of Breakdown.
+- **Measurements and progress photos** on Progress. Photos are private and stored with your log.
+- **Form tips** for every exercise on the Body page.
+- **Partner challenge** (hosted version): opt in to share weekly steps, workouts and active minutes. Needs `supabase-challenge.sql` run once.
+- **Offline** (hosted version): the app opens without signal and saves changes on the phone until it can sync.
+
 ## Where data is saved
 
 - **In Claude** (the artifact): saved privately to the signed-in Claude account and synced across devices.
