@@ -18,10 +18,12 @@ A single-page fitness app and tracker. No build step, no dependencies: open `ind
 
 ## Screens
 
+- **Dashboard**: choose which sections to show and in what order (strength, cardio, body parts trained, nutrition, each meal, water, sleep, steps, body measurements, mood, notes) for today, 7 days or 30 days.
+- **Body**: a section for each body part (chest, back, shoulders, arms, legs, glutes, core, cardio) with your recent log, the most popular exercises and the best exercises for results. Tap **Used** to log one straight into Strength or Cardio; tap again to remove it.
 - **Today**: goal meters for calories, protein, water, steps, sleep and active minutes; weight trend, net calories, training days and logging streak; the day's log. Step back through previous days.
-- **History**: every entry grouped by day, with search and type filters. Tap any entry to edit or delete it.
+- **History** (under More): every entry grouped by day, with search and type filters. Tap any entry to edit or delete it.
 - **Progress**: 4 week, 12 week and 1 year views of body weight, calories, strength volume, cardio distance, steps and sleep; estimated one-rep max per lift (Epley); personal bests table.
-- **Goals**: daily targets and target weight; export a JSON backup or CSV, import a backup, load or remove sample data.
+- **Goals** (under More): daily targets and target weight; export a JSON backup or CSV, import a backup, load or remove sample data.
 
 Strength entries remember your last session for each exercise and pre-fill the sets. A new best estimated 1RM is flagged as you save it.
 
