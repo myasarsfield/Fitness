@@ -14,29 +14,29 @@
 <style>
 /* Layout: phone-first logbook. Sticky header, one scrolling column (max 720px), fixed bottom tab bar, bottom-sheet forms. */
 :root {
-  --bg: #EDF0F4; --surface: #FFFFFF; --surface-2: #F5F7FA; --ink: #0F1A2C; --muted: #586377; --line: #D7DDE6;
-  --accent: #2346D6; --accent-ink: #FFFFFF; --accent-soft: #E3E9FD;
-  --pr: #B87C00; --danger: #BE3128; --good: #1D7F47;
-  --k-strength: #2346D6; --k-cardio: #0B8579; --k-food: #B87C00; --k-water: #1F86CC; --k-body: #7447C9;
-  --k-sleep: #3F4EA3; --k-steps: #3A8636; --k-mood: #BE4169; --k-note: #67708A;
+  --bg: #F1EFEA; --surface: #FFFFFF; --surface-2: #F7F5F1; --ink: #1E1A14; --muted: #67604F; --line: #DDD7CB;
+  --accent: #7A4523; --accent-ink: #FFFFFF; --accent-soft: #F1E4D9; --green: #16823C;
+  --pr: #B87C00; --danger: #B3261E; --good: #16823C;
+  --k-strength: #7A4523; --k-cardio: #16823C; --k-food: #B87C00; --k-water: #1F86CC; --k-body: #7447C9;
+  --k-sleep: #3F4EA3; --k-steps: #0F7A6C; --k-mood: #BE4169; --k-note: #67708A;
   --f-display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
   --f-body: "Barlow", "Segoe UI", system-ui, sans-serif;
   --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
   --r: 10px; --nav-h: 64px;
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-  --bg: #0B111B; --surface: #131B28; --surface-2: #1A2333; --ink: #E6EBF3; --muted: #94A0B3; --line: #273247;
-  --accent: #7B93FF; --accent-ink: #0B111B; --accent-soft: #1E2A4D;
-  --pr: #F0B53A; --danger: #FF6E61; --good: #52C483;
-  --k-strength: #7B93FF; --k-cardio: #3CC6B6; --k-food: #F0B53A; --k-water: #5AB6F2; --k-body: #B08CF5;
-  --k-sleep: #8E9BF0; --k-steps: #74C46C; --k-mood: #F07AA0; --k-note: #A2AABE;
+  --bg: #12110D; --surface: #1C1A15; --surface-2: #24211B; --ink: #EDE8DE; --muted: #A69E8C; --line: #353026;
+  --accent: #D19A6E; --accent-ink: #1A0F08; --accent-soft: #3A2a1E; --green: #45CF78;
+  --pr: #F0B53A; --danger: #FF7B72; --good: #45CF78;
+  --k-strength: #D19A6E; --k-cardio: #45CF78; --k-food: #F0B53A; --k-water: #5AB6F2; --k-body: #B08CF5;
+  --k-sleep: #8E9BF0; --k-steps: #3CC6B6; --k-mood: #F07AA0; --k-note: #A2AABE;
   color-scheme: dark; } }
 :root[data-theme="dark"] {
-  --bg: #0B111B; --surface: #131B28; --surface-2: #1A2333; --ink: #E6EBF3; --muted: #94A0B3; --line: #273247;
-  --accent: #7B93FF; --accent-ink: #0B111B; --accent-soft: #1E2A4D;
-  --pr: #F0B53A; --danger: #FF6E61; --good: #52C483;
-  --k-strength: #7B93FF; --k-cardio: #3CC6B6; --k-food: #F0B53A; --k-water: #5AB6F2; --k-body: #B08CF5;
-  --k-sleep: #8E9BF0; --k-steps: #74C46C; --k-mood: #F07AA0; --k-note: #A2AABE;
+  --bg: #12110D; --surface: #1C1A15; --surface-2: #24211B; --ink: #EDE8DE; --muted: #A69E8C; --line: #353026;
+  --accent: #D19A6E; --accent-ink: #1A0F08; --accent-soft: #3A2a1E; --green: #45CF78;
+  --pr: #F0B53A; --danger: #FF7B72; --good: #45CF78;
+  --k-strength: #D19A6E; --k-cardio: #45CF78; --k-food: #F0B53A; --k-water: #5AB6F2; --k-body: #B08CF5;
+  --k-sleep: #8E9BF0; --k-steps: #3CC6B6; --k-mood: #F07AA0; --k-note: #A2AABE;
   color-scheme: dark; }
 
 * { box-sizing: border-box; }
@@ -51,7 +51,7 @@ button { cursor: pointer; }
   padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
 .top-in { max-width: 720px; margin: 0 auto; display: flex; align-items: center; gap: 12px; padding-block: 10px; }
 .brand { font-family: var(--f-display); font-weight: 700; font-size: 22px; white-space: nowrap; letter-spacing: .02em; text-transform: uppercase; margin: 0; }
-.brand span { color: var(--accent); }
+.brand { color: var(--green); } .brand span { color: var(--accent); }
 .sync { margin-left: auto; font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; white-space: nowrap; }
 .sync i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); display: inline-block; }
 .sync.cloud i { background: var(--good); } .sync.local i { background: var(--pr); }
@@ -91,6 +91,7 @@ h2 { font-family: var(--f-display); font-weight: 600; font-size: 15px; letter-sp
 .quick { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 7px 13px; font-size: 14px; display: inline-flex; align-items: center; gap: 7px; font-weight: 500; }
 .chip[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.tab[aria-current="page"] svg { color: var(--green); }
 .chip.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 .chip:hover { border-color: var(--muted); }
 
