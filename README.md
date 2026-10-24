@@ -34,10 +34,25 @@ Strength entries remember your last session for each exercise and pre-fill the s
 
 ## Where data is saved
 
-- Opened as a Claude artifact: saved privately to the signed-in user's account and synced across devices.
-- Opened as a plain file or hosted page: saved in that browser's local storage. Export backups regularly.
+- **In Claude** (the artifact): saved privately to the signed-in Claude account and synced across devices.
+- **Hosted with Supabase** (GitHub Pages + `config.js` filled in): invite-only email sign-in (link or 6-digit code), each person's log private to them and synced across devices.
+- **Hosted without Supabase** (empty `config.js`): saved in that browser only. Export backups regularly.
+
+Describe and Photo food logging use Claude, so they only appear inside Claude.
+
+## Hosting with sign-in (Supabase)
+
+1. Create a free Supabase project and run `supabase.sql` in its SQL Editor.
+2. Authentication: keep Email on, switch off new sign-ups, set the Site URL and a Redirect URL to the GitHub Pages address.
+3. Optional but recommended: edit the Magic Link email template to include `{{ .Token }}` so emails show a 6-digit code (needed for iPhone home-screen apps).
+4. Invite people from Authentication, Users.
+5. Put the Project URL and anon public key in `config.js` (never the service_role key).
+6. Turn on GitHub Pages for `main` and the root folder.
 
 ## Files
 
-- `index.html`: the complete app, ready to open or host (for example on GitHub Pages).
-- `src/app.html`: the same app as an artifact page body (no `<html>`/`<head>` wrapper). `index.html` is this file wrapped in a standard document skeleton.
+- `index.html`: the hosted app, built by `python3 build.py`.
+- `config.js`: Supabase settings for the hosted app.
+- `supabase.sql`: database table and privacy rules.
+- `manifest.json`, `icons/`: home-screen app name and icons.
+- `src/app.html`: the same app as an artifact page body (no `<html>`/`<head>` wrapper). Edit this file, then run `python3 build.py`.

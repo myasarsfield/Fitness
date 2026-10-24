@@ -3,7 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0F2C1D">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Logbook">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 </head>
 <body>
 <title>Fitness Logbook</title>
@@ -348,6 +358,8 @@ body.on-dash main { padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bott
 .tbar em { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--lime), #E3B48C); }
 .dash-actions { margin-top: auto; }
 .dash-actions .btn { flex: 1; min-height: 46px; }
+body.signin .tabs { display: none; }
+body.signin main { padding-bottom: 32px; }
 /* confetti */
 .confetti { position: fixed; inset: 0; pointer-events: none; z-index: 60; overflow: hidden; }
 .confetti i { position: absolute; top: -12px; width: 9px; height: 14px; border-radius: 2px; animation: fall 1.4s cubic-bezier(.2,.7,.4,1) forwards; }
@@ -460,15 +472,47 @@ const Store = {
     if (db && id) {
       this.mode = 'cloud';
       this.col = db.collection('data/users/' + id);
+      this.be = { set: (k, d) => this.col.doc(k).set(d), del: k => this.col.doc(k).delete() };
       this.col.onSnapshot(snap => this.applySnapshot(snap), err => {
         this.mode = 'local'; this.loadLocal(); this.emit();
         toast('Sync stopped. Changes now save in this browser only.');
         void err;
       });
+    } else if (!window.claude && window.supabase && window.FITNESS_CONFIG && FITNESS_CONFIG.supabaseUrl && FITNESS_CONFIG.supabaseKey) {
+      await this.initSupabase();
     } else {
       this.mode = 'local'; this.loadLocal();
     }
     this.emit();
+  },
+  async initSupabase() {
+    const C = window.FITNESS_CONFIG;
+    this.sb = window.supabase.createClient(C.supabaseUrl, C.supabaseKey, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
+    const chk = r => { if (r && r.error) throw { code: 'remote', message: r.error.message }; return r; };
+    this.be = {
+      set: (k, d) => this.sb.from('docs').upsert({ user_id: this.user.id, id: k, data: d, updated_at: new Date().toISOString() }, { onConflict: 'user_id,id' }).then(chk),
+      del: k => this.sb.from('docs').delete().eq('user_id', this.user.id).eq('id', k).then(chk)
+    };
+    this.sb.auth.onAuthStateChange((ev, sess) => {
+      if (sess && this.mode === 'signin') this.startSb(sess);
+      if (ev === 'SIGNED_OUT') { this.mode = 'signin'; this.user = null; this.byId = new Map(); this.settings = { ...DEFAULT_SETTINGS }; this.emit(); }
+    });
+    let session = null;
+    try { ({ data: { session } } = await this.sb.auth.getSession()); } catch (_) {}
+    if (session) await this.startSb(session); else this.mode = 'signin';
+  },
+  async startSb(session) {
+    if (this.user && this.user.id === session.user.id && this.mode === 'cloud') return;
+    this.user = session.user; this.mode = 'cloud';
+    await this.pullSb();
+    if (!this.visHooked) { this.visHooked = true; document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && this.mode === 'cloud' && this.sb) this.pullSb(); }); }
+  },
+  async pullSb() {
+    try {
+      const r = await this.sb.from('docs').select('id,data');
+      if (r.error) throw r.error;
+      this.applySnapshot({ docs: (r.data || []).map(row => ({ id: row.id, data: () => row.data })) });
+    } catch (_) { toast('Could not load your log. Check your connection and try again.'); this.emit(); }
   },
   applySnapshot(snap) {
     const next = new Map();
@@ -490,8 +534,8 @@ const Store = {
     this.pending[date] = (this.pending[date] || 0) + 1;
     const run = () => {
       const entries = this.list().filter(e => e.date === date);
-      const ref = this.col.doc('d' + date);
-      return entries.length ? ref.set({ date, entries }) : ref.delete();
+      const k = 'd' + date;
+      return entries.length ? this.be.set(k, { date, entries }) : this.be.del(k);
     };
     this.queue[date] = (this.queue[date] || Promise.resolve())
       .then(run)
@@ -532,7 +576,7 @@ const Store = {
     if (this.mode === 'cloud') {
       this.pending.__settings = (this.pending.__settings || 0) + 1;
       const snapshot = { ...this.settings };
-      this.settingsQueue = this.settingsQueue.then(() => this.col.doc('settings').set(snapshot)).catch(saveError)
+      this.settingsQueue = this.settingsQueue.then(() => this.be.set('settings', snapshot)).catch(saveError)
         .finally(() => { this.pending.__settings--; if (!this.pending.__settings) delete this.pending.__settings; });
     } else this.saveLocal();
     this.emit();
@@ -650,7 +694,9 @@ function render() {
   document.body.classList.toggle('on-dash', state.tab === 'dashboard');
   const sync = $('#sync');
   sync.className = 'sync ' + Store.mode;
-  sync.querySelector('span').textContent = Store.mode === 'cloud' ? 'Synced to your account' : Store.mode === 'local' ? 'Saved on this device' : 'Connecting…';
+  sync.querySelector('span').textContent = Store.mode === 'signin' ? 'Signed out' : Store.mode === 'cloud' ? (Store.sb ? 'Synced' : 'Synced to your account') : Store.mode === 'local' ? 'Saved on this device' : 'Connecting…';
+  document.body.classList.toggle('signin', Store.mode === 'signin');
+  if (Store.mode === 'signin') { renderSignIn(); return; }
   if (Store.mode === 'connecting') { view.innerHTML = '<div class="card empty"><p class="muted">Loading your log…</p></div>'; return; }
   const all = Store.list();
   ({ today: renderToday, dashboard: renderDashboard, breakdown: renderBreakdown, body: renderBody, history: renderHistory, progress: renderProgress, goals: renderSettings })[state.tab](all);
@@ -903,7 +949,8 @@ function renderSettings(all) {
   </section>
   <section class="card stack">
     <h2>Your data</h2>
-    <p style="margin:0">${Store.mode === 'cloud' ? 'Your log is saved to your Claude account and is private to you. Open this page on any device you are signed in on and it will be there.' : 'Your log is saved in this browser on this device. Export a backup regularly so you never lose it.'}</p>
+    <p style="margin:0">${Store.sb ? `Your log is synced to your account and is private to you. Sign in on any device with <b>${esc((Store.user && Store.user.email) || '')}</b> and it will be there.` : Store.mode === 'cloud' ? 'Your log is saved to your Claude account and is private to you. Open this page on any device you are signed in on and it will be there.' : 'Your log is saved in this browser on this device. Export a backup regularly so you never lose it.'}</p>
+    ${Store.sb ? '<div class="actions"><button class="btn" data-act="sign-out">Sign out</button></div>' : ''}
     <p class="small muted" style="margin:0">${fmt(all.length)} entries across ${fmt(groupByDay(all).size)} days.</p>
     <div class="actions">
       <button class="btn" data-act="export">Export backup (.json)</button>
@@ -942,6 +989,44 @@ function celebrate() {
   const cols = ['var(--lime)', 'var(--green)', 'var(--brown)', 'var(--k-food)', 'var(--k-water)', 'var(--k-mood)'];
   for (let i = 0; i < 36; i++) { const c = document.createElement('i'); c.style.left = Math.random() * 100 + '%'; c.style.background = cols[i % cols.length]; c.style.setProperty('--dx', (Math.random() * 160 - 80) + 'px'); c.style.setProperty('--r', (Math.random() * 720 - 360) + 'deg'); c.style.animationDelay = (Math.random() * 0.25) + 's'; box.appendChild(c); }
   document.body.appendChild(box); setTimeout(() => box.remove(), 1900);
+}
+
+/* ---------- Sign-in (hosted version) ---------- */
+const signin = { email: '', sent: false, busy: false, msg: '' };
+function renderSignIn() {
+  const S = signin;
+  view.innerHTML = hero('Fitness Logbook', 'Sign in to your logbook', 'This logbook is invite only. Use the email address your invite was sent to.') + `
+  <section class="card stack">
+    ${!S.sent ? `<form id="signin-form" class="stack" novalidate>
+        <div class="field"><label for="si-email">Email address</label><input id="si-email" type="email" autocomplete="email" inputmode="email" required value="${esc(S.email)}" placeholder="you@example.com"></div>
+        <button class="btn primary" type="submit" ${S.busy ? 'disabled' : ''}>${S.busy ? 'Sending…' : 'Email me a sign-in link'}</button>
+      </form>`
+    : `<form id="code-form" class="stack" novalidate>
+        <p style="margin:0">We've emailed <b>${esc(S.email)}</b>. Tap the link in the email, or type the 6-digit code if your email shows one.</p>
+        <div class="field"><label for="si-code">Sign-in code</label><input id="si-code" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="123456"></div>
+        <div class="actions"><button class="btn primary" type="submit" ${S.busy ? 'disabled' : ''}>${S.busy ? 'Checking…' : 'Sign in'}</button><button class="btn" type="button" data-act="signin-back">Use a different email</button></div>
+        <p class="small muted" style="margin:0">On iPhone, if you added the app to your home screen, use the code: links open in Safari instead.</p>
+      </form>`}
+    ${S.msg ? `<p class="small" style="margin:0;color:var(--danger)" role="alert">${esc(S.msg)}</p>` : ''}
+  </section>`;
+}
+async function sendSignIn(email) {
+  signin.email = email; signin.busy = true; signin.msg = ''; renderSignIn();
+  try {
+    const r = await Store.sb.auth.signInWithOtp({ email, options: { shouldCreateUser: false, emailRedirectTo: location.origin + location.pathname } });
+    if (r.error) throw r.error;
+    signin.sent = true;
+  } catch (e) {
+    const m = String((e && e.message) || '');
+    signin.msg = /signup|not allowed|not found|user/i.test(m) ? "That email hasn't been invited. Ask for an invite, then try again." : /rate|seconds/i.test(m) ? 'Please wait a minute before asking for another email.' : 'Could not send the email. Check the address and your connection.';
+  }
+  signin.busy = false; renderSignIn();
+}
+async function verifyCode(code) {
+  signin.busy = true; signin.msg = ''; renderSignIn();
+  try { const r = await Store.sb.auth.verifyOtp({ email: signin.email, token: code, type: 'email' }); if (r.error) throw r.error; signin.sent = false; signin.msg = ''; }
+  catch (_) { signin.msg = 'That code did not work. Check it, or ask for a new email.'; }
+  signin.busy = false; if (Store.mode === 'signin') renderSignIn();
 }
 
 /* ---------- Drop-down helper ---------- */
@@ -1005,7 +1090,7 @@ function openFoodLogger(presetMeal) {
   const time = date === t ? nowTime() : '12:00';
   sheetCtx = { kind: 'food', food: { mode: 'search', basket: [], q: '', results: [], busy: false, ctl: null, photo: null, photoKind: 'plate', saving: false }, date, time, meal: presetMeal || guessMeal(time) };
   panel.innerHTML = `<div class="sheet-head"><span class="dot" style="--c:${kc('food')};width:12px;height:12px"></span><h3 id="sheet-title">Food</h3><button class="icon-btn" data-act="close" aria-label="Close">${ICON.close}</button></div>
-    <div class="seg seg-full" role="tablist" aria-label="How to add food">${[['search', 'Search'], ['describe', 'Describe'], ['photo', 'Photo'], ['saved', 'Saved'], ['manual', 'Manual']].map(([m, l]) => `<button role="tab" data-fmode="${m}" aria-pressed="${m === 'search'}">${l}</button>`).join('')}</div>
+    <div class="seg seg-full" role="tablist" aria-label="How to add food">${[['search', 'Search'], ['describe', 'Describe'], ['photo', 'Photo'], ['saved', 'Saved'], ['manual', 'Manual']].filter(([m]) => window.claude || (m !== 'describe' && m !== 'photo')).map(([m, l]) => `<button role="tab" data-fmode="${m}" aria-pressed="${m === 'search'}">${l}</button>`).join('')}</div>
     <div id="fq-body" class="stack"></div>
     <div id="basket" class="stack"></div>
     <div class="row">${selectF('meal', 'Meal', MEALS, sheetCtx.meal)}${fld('date', 'Date', date, 'type="date"')}${fld('time', 'Time', time, 'type="time"')}</div>
@@ -1700,6 +1785,8 @@ document.addEventListener('click', ev => {
     case 'add': openPicker(); break;
     case 'dash-custom': openDashCustom(); break;
     case 'tiles-edit': openTilePicker(); break;
+    case 'signin-back': signin.sent = false; signin.msg = ''; renderSignIn(); break;
+    case 'sign-out': if (armed(el, 'Tap again to sign out')) Store.sb.auth.signOut(); break;
     case 'tiles-reset': Store.setSettings({ tiles: DEFAULT_TILES.slice() }); openTilePicker(); break;
     case 'dash-all': Store.setSettings({ dashHidden: [] }); openDashCustom(); break;
     case 'close': closeSheet(); break;
@@ -1722,6 +1809,8 @@ sheet.addEventListener('click', ev => { if (ev.target === sheet) closeSheet(); }
 document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && !sheet.hidden) closeSheet(); });
 
 document.addEventListener('submit', ev => {
+  if (ev.target.id === 'signin-form') { ev.preventDefault(); const em = ($('#si-email').value || '').trim().toLowerCase(); if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) { signin.msg = 'Enter a valid email address.'; renderSignIn(); return; } sendSignIn(em); return; }
+  if (ev.target.id === 'code-form') { ev.preventDefault(); const c = ($('#si-code').value || '').replace(/\D/g, ''); if (c.length < 6) { signin.msg = 'Enter the code from the email.'; renderSignIn(); return; } verifyCode(c); return; }
   if (ev.target.id !== 'entry-form') return;
   ev.preventDefault();
   const res = readForm(ev.target);
