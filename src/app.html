@@ -1044,7 +1044,7 @@ function applyHealthImport() {
   const key = date.replace(/-/g, ''); const now = Date.now(); const out = []; const got = [];
   const steps = n(d.steps); if (steps) { out.push({ id: `h${key}steps`, kind: 'steps', date, time: '23:00', created: now, health: true, count: Math.round(steps) }); got.push(`${fmt(steps)} steps`); }
   let sleep = n(d.sleep); if (sleep == null && n(d.sleep_min) != null) sleep = n(d.sleep_min) / 60;
-  if (sleep && sleep > 24) sleep = sleep / 60; // minutes sent by mistake
+  if (sleep && sleep > 1440) sleep = sleep / 3600; else if (sleep && sleep > 24) sleep = sleep / 60; // seconds or minutes sent instead of hours
   if (sleep) { sleep = Math.round(sleep * 100) / 100; out.push({ id: `h${key}sleep`, kind: 'sleep', date, time: '07:00', created: now, health: true, hours: sleep }); got.push(`${fmt(sleep, 1)} h sleep`); }
   const ex = n(d.exercise), en = n(d.energy);
   if (ex) { const e = { id: `h${key}exercise`, kind: 'cardio', date, time: '23:00', created: now, health: true, activity: 'Apple Watch', minutes: Math.round(ex), notes: 'Exercise minutes from Apple Health' }; if (en) e.kcal = Math.round(en); out.push(e); got.push(`${fmt(ex)} exercise min`); }
