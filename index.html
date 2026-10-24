@@ -1067,7 +1067,16 @@ function applyHealthImport() {
   const ex = n(d.exercise), en = n(d.energy);
   if (ex) { const e = { id: `h${key}exercise`, kind: 'cardio', date, time: '23:00', created: now, health: true, activity: 'Apple Watch', minutes: Math.round(ex), notes: 'Exercise minutes from Apple Health' }; if (en) e.kcal = Math.round(en); out.push(e); got.push(`${fmt(ex)} exercise min`); }
   const w = n(d.weight); if (w && w > 20 && w < 400) { out.push({ id: `h${key}weight`, kind: 'body', date, time: '07:00', created: now, health: true, weight: Math.round(w * 10) / 10 }); got.push(`${fmt(w, 1)} kg`); }
-  if (!out.length) { toast('No Apple Health numbers came through. Check the Shortcut.'); return; }
+  if (!out.length) {
+    const seen = Object.entries(d).filter(([k]) => k !== 'date').map(([k, v]) => `${k}=${String(v).slice(0, 24)}`).join(', ');
+    sheetCtx = { kind: null };
+    panel.innerHTML = `<div class="sheet-head"><h3 id="sheet-title">No Health numbers</h3><button class="icon-btn" data-act="close" aria-label="Close">${ICON.close}</button></div>
+      <p style="margin:0">The Shortcut opened the Logbook, but none of the values were numbers. This is what arrived:</p>
+      <div class="hint" style="overflow-wrap:anywhere"><b>${esc(seen || 'nothing after ?health=1')}</b></div>
+      <p class="small muted" style="margin:0">If you see words like [Steps] or blanks, the variables aren't inserted in the Text action. Screenshot this and send it to Claude.</p>
+      <div class="actions"><span class="spacer"></span><button class="btn primary" data-act="close">OK</button></div>`;
+    showSheet(); return;
+  }
   Store.putMany(out);
   toast(`Apple Health added for ${relDay(date).toLowerCase() === 'today' ? 'today' : niceDay(date)}: ${got.join(', ')}`);
 }
