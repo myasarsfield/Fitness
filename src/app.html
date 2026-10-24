@@ -493,6 +493,7 @@ const Store = {
     if (this.user && this.user.id === session.user.id && this.mode === 'cloud') return;
     this.user = session.user; this.mode = 'cloud';
     await this.pullSb();
+    applyHealthImport();
     if (!this.visHooked) { this.visHooked = true; document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && this.mode === 'cloud' && this.sb) this.pullSb(); }); }
   },
   async pullSb() {
@@ -593,7 +594,7 @@ function dayTotals(list) {
     water: sum(list.filter(e => e.kind === 'water').map(e => e.ml)),
     steps: sum(list.filter(e => e.kind === 'steps').map(e => e.count)),
     sleep: sum(list.filter(e => e.kind === 'sleep').map(e => e.hours)),
-    active: sum(cardio.map(e => e.minutes)) + sum(strength.map(e => e.minutes)),
+    active: Math.max(sum(cardio.filter(e => !e.health).map(e => e.minutes)) + sum(strength.map(e => e.minutes)), sum(cardio.filter(e => e.health).map(e => e.minutes))),
     sets: sum(strength.map(e => (e.sets || []).length)), volume: sum(strength.map(volume)),
     km: sum(cardio.map(e => e.km)), hasFood: food.length > 0, hasSteps: list.some(e => e.kind === 'steps'), hasSleep: list.some(e => e.kind === 'sleep'),
     trained: strength.length + cardio.length > 0
@@ -661,7 +662,7 @@ function summary(e) {
 
 function entryRow(e, prs, showDate) {
   const s = summary(e);
-  const tags = (prs && prs.has(e.id) ? '<span class="tag pr">Best</span>' : '') + (e.sample ? '<span class="tag sample">Sample</span>' : '');
+  const tags = (prs && prs.has(e.id) ? '<span class="tag pr">Best</span>' : '') + (e.sample ? '<span class="tag sample">Sample</span>' : '') + (e.health ? '<span class="tag sample">Health</span>' : '');
   return `<button class="entry" data-edit="${esc(e.id)}" style="--c:${kc(e.kind)}">
     <span class="t">${showDate ? esc(DOW[parseDay(e.date).getDay()] + ' ' + parseDay(e.date).getDate()) : esc(e.time || '')}</span><span class="stripe"></span>
     <span class="main"><span class="ti">${esc(s.title)}${tags}</span>${s.detail ? `<span class="de">${esc(s.detail)}</span>` : ''}</span>
@@ -936,6 +937,12 @@ function renderSettings(all) {
     <p class="small muted" style="margin:0">Goals save as soon as you leave each box. Active time counts cardio minutes plus any session length you add to strength entries.</p>
   </section>
   <section class="card stack">
+    <h2>Apple Health</h2>
+    <p style="margin:0">Bring in steps, sleep, exercise minutes and weight from your iPhone and Apple Watch using a Shortcut. Each run replaces that day's Health numbers, so running it twice is fine.</p>
+    <p class="small muted" style="margin:0">The Shortcut opens this page with your numbers, for example <code style="overflow-wrap:anywhere">${esc(location.origin + location.pathname)}?health=1&amp;steps=8000&amp;sleep=7.5&amp;exercise=35&amp;weight=81.2</code></p>
+    ${Store.list().some(e => e.health) ? `<p class="small" style="margin:0">Last import: ${esc(niceDay(Store.list().filter(e => e.health).pop().date))}</p>` : ''}
+  </section>
+  <section class="card stack">
     <h2>Your data</h2>
     <p style="margin:0">${Store.sb ? `Your log is synced to your account and is private to you. Sign in on any device with <b>${esc((Store.user && Store.user.email) || '')}</b> and it will be there.` : Store.mode === 'cloud' ? 'Your log is saved to your Claude account and is private to you. Open this page on any device you are signed in on and it will be there.' : 'Your log is saved in this browser on this device. Export a backup regularly so you never lose it.'}</p>
     ${Store.sb ? '<div class="actions"><button class="btn" data-act="sign-out">Sign out</button></div>' : ''}
@@ -1015,6 +1022,36 @@ async function verifyCode(code) {
   try { const r = await Store.sb.auth.verifyOtp({ email: signin.email, token: code, type: 'email' }); if (r.error) throw r.error; signin.sent = false; signin.msg = ''; }
   catch (_) { signin.msg = 'That code did not work. Check it, or ask for a new email.'; }
   signin.busy = false; if (Store.mode === 'signin') renderSignIn();
+}
+
+/* ---------- Apple Health import (via an iPhone Shortcut) ---------- */
+// The Shortcut opens: .../Fitness/?health=1&date=YYYY-MM-DD&steps=..&sleep=..(hours)&exercise=..(min)&energy=..(kcal)&weight=..(kg)
+const HEALTH_KEY = 'fitness-health-pending';
+function captureHealthImport() {
+  let q; try { q = new URLSearchParams(location.search); } catch (_) { return; }
+  if (!q.has('health')) return;
+  const pick = {}; ['date', 'steps', 'sleep', 'sleep_min', 'exercise', 'energy', 'weight'].forEach(k => { if (q.get(k) != null && q.get(k) !== '') pick[k] = q.get(k); });
+  try { sessionStorage.setItem(HEALTH_KEY, JSON.stringify(pick)); } catch (_) {}
+  window.__healthPending = pick;
+  try { history.replaceState(null, '', location.pathname + location.hash); } catch (_) {}
+}
+function applyHealthImport() {
+  let d = window.__healthPending; if (!d) { try { d = JSON.parse(sessionStorage.getItem(HEALTH_KEY) || 'null'); } catch (_) {} }
+  if (!d) return;
+  window.__healthPending = null; try { sessionStorage.removeItem(HEALTH_KEY); } catch (_) {}
+  const n = v => { let t = String(v || '').replace(/[^0-9.,-]/g, ''); t = /,\d{3}(?!\d)/.test(t) ? t.replace(/,/g, '') : t.replace(',', '.'); const x = num(t); return x != null && x >= 0 ? x : null; };
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(d.date || '') ? d.date : todayStr();
+  const key = date.replace(/-/g, ''); const now = Date.now(); const out = []; const got = [];
+  const steps = n(d.steps); if (steps) { out.push({ id: `h${key}steps`, kind: 'steps', date, time: '23:00', created: now, health: true, count: Math.round(steps) }); got.push(`${fmt(steps)} steps`); }
+  let sleep = n(d.sleep); if (sleep == null && n(d.sleep_min) != null) sleep = n(d.sleep_min) / 60;
+  if (sleep && sleep > 24) sleep = sleep / 60; // minutes sent by mistake
+  if (sleep) { sleep = Math.round(sleep * 100) / 100; out.push({ id: `h${key}sleep`, kind: 'sleep', date, time: '07:00', created: now, health: true, hours: sleep }); got.push(`${fmt(sleep, 1)} h sleep`); }
+  const ex = n(d.exercise), en = n(d.energy);
+  if (ex) { const e = { id: `h${key}exercise`, kind: 'cardio', date, time: '23:00', created: now, health: true, activity: 'Apple Watch', minutes: Math.round(ex), notes: 'Exercise minutes from Apple Health' }; if (en) e.kcal = Math.round(en); out.push(e); got.push(`${fmt(ex)} exercise min`); }
+  const w = n(d.weight); if (w && w > 20 && w < 400) { out.push({ id: `h${key}weight`, kind: 'body', date, time: '07:00', created: now, health: true, weight: Math.round(w * 10) / 10 }); got.push(`${fmt(w, 1)} kg`); }
+  if (!out.length) { toast('No Apple Health numbers came through. Check the Shortcut.'); return; }
+  Store.putMany(out);
+  toast(`Apple Health added for ${relDay(date).toLowerCase() === 'today' ? 'today' : niceDay(date)}: ${got.join(', ')}`);
 }
 
 /* ---------- Drop-down helper ---------- */
@@ -1662,6 +1699,7 @@ function readForm(form) {
   base.created = prev ? prev.created : Date.now();
   if (prev && prev.sample) base.sample = true;
   if (prev && prev.lib) base.lib = prev.lib;
+  if (prev && prev.health) base.health = true;
   if (prev && prev.bodyPart && kind === 'cardio') base.bodyPart = prev.bodyPart;
   const clean = o => { Object.keys(o).forEach(k => { if (o[k] === null || o[k] === '') delete o[k]; }); return o; };
   switch (kind) {
@@ -1913,8 +1951,9 @@ document.addEventListener('change', ev => {
 
 Store.on(render);
 Store.on(checkCelebrate);
+captureHealthImport();
 render();
-Store.init();
+Store.init().then(() => { if (Store.mode === 'local' || (Store.mode === 'cloud' && !Store.sb)) applyHealthImport(); });
 // roll the day over at midnight if the page stays open on today
 let lastToday = todayStr();
 setInterval(() => { const t = todayStr(); if (t !== lastToday) { if (state.day === lastToday) state.day = t; lastToday = t; render(); } }, 60000);

@@ -40,6 +40,14 @@ Strength entries remember your last session for each exercise and pre-fill the s
 
 Describe and Photo food logging use Claude, so they only appear inside Claude.
 
+## Apple Health (via Shortcuts)
+
+An iPhone Shortcut can read today's steps, sleep, exercise minutes, active energy and weight from Apple Health and open the hosted app with them:
+
+`https://myasarsfield.github.io/Fitness/?health=1&steps=8000&sleep=7.5&exercise=35&energy=450&weight=81.2`
+
+Optional `date=YYYY-MM-DD` (defaults to today) and `sleep_min` (minutes instead of hours). Each run replaces that day's Health entries, so it can run more than once. If you are signed out, the numbers are applied after you sign in.
+
 ## Hosting with sign-in (Supabase)
 
 1. Create a free Supabase project and run `supabase.sql` in its SQL Editor.
