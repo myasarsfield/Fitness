@@ -1000,7 +1000,7 @@ async function sendSignIn(email) {
     signin.sent = true;
   } catch (e) {
     const m = String((e && e.message) || '');
-    signin.msg = /signup|not allowed|not found|user/i.test(m) ? "That email hasn't been invited. Ask for an invite, then try again." : /rate|seconds/i.test(m) ? 'Please wait a minute before asking for another email.' : 'Could not send the email. Check the address and your connection.';
+    signin.msg = /signup|not allowed|not found|user/i.test(m) ? "That email hasn't been invited. Ask for an invite, then try again." : /rate limit|too many/i.test(m) ? 'Too many sign-in emails have been sent in the last hour. Tap the link in an email you already have, or try again in about an hour.' : /seconds/i.test(m) ? 'Please wait a minute before asking for another email.' : 'Could not send the email. Check the address and your connection.';
   }
   signin.busy = false; renderSignIn();
 }
